@@ -2,13 +2,12 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>초등 한글 만들기 툴킷</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>우리 반 한글 만들기 툴킷</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
-            --main-orange: #ff4600; /* 메인 색상 */
-            --border-gray: #dcdcdc;
+            --main-orange: #ff4600;
             --bg-light: #F8FAFC;
         }
 
@@ -16,14 +15,14 @@
             margin: 0; padding: 0; width: 100%; height: 100%;
             font-family: 'NanumSquareRound', sans-serif;
             overflow: hidden; background-color: var(--bg-light);
+            touch-action: none;
         }
 
-        /* [1] 상단 작업 영역 (80%) */
         #workspace {
             position: relative;
             width: calc(100% - 40px);
-            height: 78vh;
-            margin: 20px auto;
+            height: 75vh;
+            margin: 15px auto;
             background: white;
             border-radius: 30px;
             border: 4px solid #E2E8F0;
@@ -37,66 +36,54 @@
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             color: #CBD5E1; font-size: 24px; pointer-events: none;
+            text-align: center;
         }
 
         .dropped-item {
             position: absolute;
-            font-size: 120px; /* 2배 확대 */
+            font-size: 120px;
             font-weight: 800;
             cursor: move;
             user-select: none;
             color: #1E293B;
             line-height: 1;
+            touch-action: none;
+            z-index: 10;
+            /* 초기 위치 잡을 때 튀지 않도록 설정 */
+            will-change: left, top;
         }
 
-        /* [2] 하단 도크 영역 (20%) */
         #dock {
             position: fixed;
-            bottom: 0; width: 100%; height: 18vh;
+            bottom: 0; width: 100%; height: 22vh;
             background: #F1F5F9;
             display: flex; align-items: center;
-            padding: 0 40px; box-sizing: border-box;
-            gap: 20px;
+            padding: 0 30px; box-sizing: border-box;
+            gap: 20px; border-top: 1px solid #E2E8F0;
         }
 
-        /* 자모 리스트 영역 (왼쪽 배치) */
-        #jamo-container {
-            flex-grow: 1; display: flex; flex-direction: column; gap: 8px;
-        }
-
+        #jamo-container { flex-grow: 1; display: flex; flex-direction: column; gap: 8px; }
         .jamo-row { display: flex; gap: 8px; flex-wrap: wrap; }
-        .jamo-label { font-size: 14px; color: #64748B; font-weight: bold; margin-bottom: 2px; }
+        .jamo-label { font-size: 14px; color: #64748B; font-weight: bold; }
 
         .jamo-item {
-            width: 50px; height: 50px; background: white;
-            border: 1px solid #E2E8F0; border-radius: 10px;
+            width: 55px; height: 55px; background: white;
+            border: 1px solid #E2E8F0; border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 24px; font-weight: bold; cursor: grab;
+            font-size: 28px; font-weight: bold; cursor: pointer;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            user-select: none; touch-action: none;
         }
 
-        /* 우측 버튼 그룹 */
-        .btn-group { display: flex; flex-direction: column; gap: 10px; width: 220px; }
-        
-        /* 전체 지우기 버튼 스타일 수정 */
-        .btn-clear {
-            background: var(--main-orange); color: #FFFFFF;
-            border: none; border-radius: 30px;
-            height: 55px; font-size: 18px; font-weight: 800; cursor: pointer;
-        }
-
-        /* 이미지로 저장 버튼 스타일 */
-        .btn-save {
-            background: white; color: black;
-            border: 2px solid var(--border-gray); border-radius: 30px;
-            height: 55px; font-size: 18px; font-weight: bold; cursor: pointer;
-        }
+        .btn-group { display: flex; flex-direction: column; gap: 10px; width: 180px; }
+        .btn-clear { background: var(--main-orange); color: white; border-radius: 30px; height: 55px; font-size: 18px; font-weight: 800; cursor: pointer; }
+        .btn-save { background: white; color: black; border: 2px solid #dcdcdc; border-radius: 30px; height: 55px; font-size: 18px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<div id="workspace" ondrop="drop(event)" ondragover="allowDrop(event)">
-    <div id="workspace-hint">자음과 모음을 드래그하여 글자를 만들어보세요!</div>
+<div id="workspace">
+    <div id="workspace-hint">자모를 클릭하거나 드래그하여<br>글자를 만들어보세요!</div>
 </div>
 
 <div id="dock">
@@ -110,7 +97,6 @@
             <div id="vowels" class="jamo-row"></div>
         </div>
     </div>
-
     <div class="btn-group">
         <button class="btn-clear" onclick="clearWorkspace()">전체 지우기</button>
         <button class="btn-save" onclick="saveAsImage()">이미지로 저장</button>
@@ -118,39 +104,34 @@
 </div>
 
 <script>
-    // 현대 한글 자모 40자 리스트
     const consonants = "ㄱㄴㄷㄹㅁㅂㅅㅇㅈㅊㅋㅌㅍㅎㄲㄸㅃㅆㅉ".split("");
     const vowels = "ㅏㅑㅓㅕㅗㅛㅜㅠㅡㅣㅐㅒㅔㅖㅘㅙㅚㅝㅞㅟㅢ".split("");
+    const workspace = document.getElementById('workspace');
 
-    // 자모 렌더링 (전체 노출)
     function renderJamo() {
         const conDiv = document.getElementById('consonants');
         const vowDiv = document.getElementById('vowels');
-        
-        consonants.forEach(char => createJamoEl(char, conDiv));
-        vowels.forEach(char => createJamoEl(char, vowDiv));
+        consonants.forEach(char => createDockJamo(char, conDiv));
+        vowels.forEach(char => createDockJamo(char, vowDiv));
     }
 
-    function createJamoEl(char, parent) {
+    function createDockJamo(char, parent) {
         const div = document.createElement('div');
         div.className = 'jamo-item';
         div.innerText = char;
-        div.draggable = true;
-        div.ondragstart = (e) => {
-            e.dataTransfer.setData("text", char);
+
+        div.onpointerdown = (e) => {
+            e.preventDefault();
+            // 1. 새 요소 생성
+            const newItem = createDroppedItem(char, e.clientX, e.clientY);
+            // 2. 즉시 드래그 시작
+            startDragging(newItem, e, true);
         };
         parent.appendChild(div);
     }
 
-    // 드래그 앤 드롭 로직
-    function allowDrop(e) { e.preventDefault(); }
-
-    function drop(e) {
-        e.preventDefault();
-        const char = e.dataTransfer.getData("text");
-        const workspace = document.getElementById('workspace');
+    function createDroppedItem(char, startX, startY) {
         const hint = document.getElementById('workspace-hint');
-        
         if(hint) hint.style.display = 'none';
 
         const newItem = document.createElement('div');
@@ -158,37 +139,62 @@
         newItem.innerText = char;
         
         const rect = workspace.getBoundingClientRect();
-        newItem.style.left = (e.clientX - rect.left - 25) + 'px';
-        newItem.style.top = (e.clientY - rect.top - 50) + 'px';
+        
+        // 커서 위치를 계산하되, 글자의 정중앙(약 60px)에 커서가 오도록 보정
+        let x = startX - rect.left - 60;
+        let y = startY - rect.top - 60;
 
-        // 배치 후 이동 기능
-        newItem.onmousedown = function(event) {
-            let shiftX = event.clientX - newItem.getBoundingClientRect().left;
-            let shiftY = event.clientY - newItem.getBoundingClientRect().top;
+        newItem.style.left = x + 'px';
+        newItem.style.top = y + 'px';
 
-            function moveAt(pageX, pageY) {
-                newItem.style.left = pageX - rect.left - shiftX + 'px';
-                newItem.style.top = pageY - rect.top - shiftY + 'px';
-            }
-
-            function onMouseMove(event) { moveAt(event.pageX, event.pageY); }
-            document.addEventListener('mousemove', onMouseMove);
-            newItem.onmouseup = function() {
-                document.removeEventListener('mousemove', onMouseMove);
-                newItem.onmouseup = null;
-            };
+        newItem.onpointerdown = (e) => {
+            e.stopPropagation();
+            startDragging(newItem, e, false);
         };
 
         workspace.appendChild(newItem);
+        return newItem;
     }
 
-    // 기능 함수
+    function startDragging(el, e, isInitial) {
+        el.setPointerCapture(e.pointerId);
+        
+        const rect = workspace.getBoundingClientRect();
+        
+        // 드래그 시 커서와 글자 사이의 거리(오프셋) 계산
+        // 처음 생성될 때는 정중앙(60,60)으로 잡고, 이후 드래그 시에는 실제 클릭 지점 유지
+        let shiftX = isInitial ? 60 : e.clientX - el.getBoundingClientRect().left;
+        let shiftY = isInitial ? 60 : e.clientY - el.getBoundingClientRect().top;
+
+        function onPointerMove(ev) {
+            let x = ev.clientX - rect.left - shiftX;
+            let y = ev.clientY - rect.top - shiftY;
+
+            // 화면 밖 이탈 방지
+            if (x < -60) x = -60;
+            if (x > workspace.offsetWidth - 60) x = workspace.offsetWidth - 60;
+            if (y < -60) y = -60;
+            if (y > workspace.offsetHeight - 60) y = workspace.offsetHeight - 60;
+
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+        }
+
+        function onPointerUp(ev) {
+            el.releasePointerCapture(ev.pointerId);
+            el.removeEventListener('pointermove', onPointerMove);
+            el.removeEventListener('pointerup', onPointerUp);
+        }
+
+        el.addEventListener('pointermove', onPointerMove);
+        el.addEventListener('pointerup', onPointerUp);
+    }
+
     function clearWorkspace() {
-        document.getElementById('workspace').innerHTML = '<div id="workspace-hint">자음과 모음을 드래그하여 글자를 만들어보세요!</div>';
+        workspace.innerHTML = '<div id="workspace-hint">자모를 클릭하거나 드래그하여<br>글자를 만들어보세요!</div>';
     }
 
     function saveAsImage() {
-        const workspace = document.getElementById('workspace');
         html2canvas(workspace).then(canvas => {
             const link = document.createElement('a');
             link.download = '우리반_한글만들기.png';
